@@ -20,9 +20,27 @@ tasks:
       - task: install
       - ${PACKAGE_MANAGER} run build
 
+  rmdir:
+    desc: Remove directory if and only if it exists
+    vars:
+      DIR: '{{index (splitArgs .CLI_ARGS) 0}}'
+    cmds:
+      - |
+        [ -d "{{.DIR}}" ] && rm -r "{{.DIR}}"
+    silent: true
+
   clean:
     desc: Clean the build output
     cmds:
-      - rm -r ./{{.OUTPUT_DIR}}
+      - task: rmdir
+        vars:
+          CLI_ARGS: './{{.OUTPUT_DIR}}'
     silent: true
     ignore_error: true
+
+  dev:
+    deps:
+      - install
+    cmds:
+      - ${PACKAGE_MANAGER} dev
+    silent: true
