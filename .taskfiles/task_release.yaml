@@ -5,6 +5,7 @@ version: "3"
 env:
   TAG_PREFIX: v
   CHANGES_DIR: .changes
+  CHANGELOG_FILE: CHANGELOG.md
 
 vars:
   VERSION_FILE: package.json
@@ -13,14 +14,22 @@ tasks:
   prepare:
     desc: Install tools
     cmds:
-      - go install github.com/git-chglog/git-chglog/cmd/git-chglog@latest
-      - go install github.com/miniscruff/changie@latest
+      - brew install git-cliff
 
   batch_changelog:
     desc: Generate changelog for existing git tags
     cmds:
+      - mkdir -p ${CHANGES_DIR}
       - rm ${CHANGES_DIR}/${TAG_PREFIX}*.md || true
-      - for VERSION_TAG in $(git -c 'versionsort.suffix=-' tag --list --sort=v:refname); do git-chglog --output ${CHANGES_DIR}/${VERSION_TAG}.md ${VERSION_TAG} ; done
+      - |
+        for VERSION_TAG in $(git -c 'versionsort.suffix=-' tag --list --sort=v:refname); do
+          PREV_TAG=$(git -c 'versionsort.suffix=-' tag --list --sort=v:refname | awk -v t="${VERSION_TAG}" '$0==t{exit} {last=$0} END{print last}')
+          if [ -z "${PREV_TAG}" ]; then
+            # First tag: no previous tag, range from the root commit (itself excluded)
+            PREV_TAG=$(git rev-list --max-parents=0 "${VERSION_TAG}" | tail -1)
+          fi
+          git-cliff --strip all "${PREV_TAG}..${VERSION_TAG}" --output ${CHANGES_DIR}/${VERSION_TAG}.md
+        done
     silent: true
 
   changelog:
@@ -28,7 +37,15 @@ tasks:
     vars:
       VERSION_TAG: ${TAG_PREFIX}{{.CLI_ARGS}}
     cmds:
-      - git-chglog --output ${CHANGES_DIR}/{{.VERSION_TAG}}.md {{.VERSION_TAG}}
+      - mkdir -p ${CHANGES_DIR}
+      - |
+        VERSION_TAG="{{.VERSION_TAG}}"
+        PREV_TAG=$(git -c 'versionsort.suffix=-' tag --list --sort=v:refname | awk -v t="${VERSION_TAG}" '$0==t{exit} {last=$0} END{print last}')
+        if [ -z "${PREV_TAG}" ]; then
+          # First tag: no previous tag, range from the root commit (itself excluded)
+          PREV_TAG=$(git rev-list --max-parents=0 "${VERSION_TAG}" | tail -1)
+        fi
+        git-cliff --strip all "${PREV_TAG}..${VERSION_TAG}" --output ${CHANGES_DIR}/${VERSION_TAG}.md
     silent: true
 
   changelog_next:
@@ -36,7 +53,8 @@ tasks:
     vars:
       VERSION_TAG: ${TAG_PREFIX}{{.CLI_ARGS}}
     cmds:
-      - git-chglog --output ${CHANGES_DIR}/{{.VERSION_TAG}}.md --next-tag {{.VERSION_TAG}} {{.VERSION_TAG}}
+      - mkdir -p ${CHANGES_DIR}
+      - git-cliff --strip all --unreleased --tag {{.VERSION_TAG}} --output ${CHANGES_DIR}/{{.VERSION_TAG}}.md
     silent: true
 
   commit_release:
@@ -44,8 +62,7 @@ tasks:
     vars:
       VERSION_TAG: ${TAG_PREFIX}{{.CLI_ARGS}}
     cmds:
-      - git add ${CHANGES_DIR}
-      - git add CHANGELOG.md
+      - git add ${CHANGELOG_FILE}
       - git add {{.VERSION_FILE}}
       - |
         git commit -m "chore(release): {{.VERSION_TAG}}"
@@ -57,7 +74,12 @@ tasks:
       VERSION_TAG: ${TAG_PREFIX}{{.CLI_ARGS}}
     cmds:
       - echo "Releasing version {{.VERSION_TAG}}"
-      - task release:changelog_next -- {{.CLI_ARGS}}
-      - changie merge
+      - |
+        if [ -f ${CHANGELOG_FILE} ]; then
+          # Prepend only the new release section to the existing changelog
+          git-cliff --unreleased --tag {{.VERSION_TAG}} --prepend ${CHANGELOG_FILE}
+        else
+          git-cliff --unreleased --tag {{.VERSION_TAG}} --output ${CHANGELOG_FILE}
+        fi
       - task release:commit_release -- {{.CLI_ARGS}}
     silent: true
