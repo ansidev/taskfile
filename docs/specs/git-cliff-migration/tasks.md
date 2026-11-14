@@ -30,7 +30,7 @@
   - [x] 5.5 Regression caught and fixed during verification: prev-tag resolution originally picked the newest tag overall; now picks the tag immediately preceding the target
 
 - [ ] 6. Wrap-up
-  - [ ] 6.1 Commit changes (`feat(task:release): replace git-chglog with git-cliff; drop changie`) — committed 2026-11-15, branch `TFS-1` pushed
+  - [x] 6.1 Commit changes (`feat(task:release): replace git-chglog with git-cliff; drop changie`) — committed 2026-11-15 (`c3fcb09`, `a7103df`), branch `TFS-1` pushed
   - [x] 6.2 Spec approved by user via kiro-impl preflight (2026-11-15); `spec.json` approvals set to `approved: true`
   - [ ] 6.3 Move kanpal issue TFS-1 to done — deferred until PR merge per user decision (2026-11-15); branch committed and pushed
   - [x] 6.4 `package.json` staging bug: decided out of scope (user, 2026-11-15); logged as kanpal follow-up issue TFS-2
