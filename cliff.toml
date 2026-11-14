@@ -1,0 +1,60 @@
+# git-cliff configuration
+# https://git-cliff.org/docs/configuration
+#
+# Notes:
+# - This repo's history is conventional commits (verified in TFS-1); non-conventional
+#   commits ("Initial commit") are filtered via `filter_unconventional = true`.
+# - Full CHANGELOG.md generation (`git-cliff -o CHANGELOG.md`) includes header/footer.
+# - The `.changes/<tag>.md` fragment tasks pass `--strip all` so fragments contain
+#   only their own version section.
+
+[changelog]
+header = """\
+# Changelog\n\
+"""
+footer = ""
+# Template for the changelog body of each version
+body = """
+{% if version %}\
+    ## {{ version }} - {{ timestamp | date(format="%Y-%m-%d") }}\
+{% else %}\
+    ## Unreleased\
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}\
+    \n### {{ group | upper_first }}\
+    {% for commit in commits %}\
+        \n- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}\
+            {{ commit.message | upper_first }}\
+    {% endfor %}\
+    \n\
+{% endfor %}\
+\n\
+"""
+trim = true
+# Always render the version section, even when there are no commits (e.g. `--tag` on HEAD)
+render_always = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+tag_pattern = "v[0-9]*"
+filter_commits = false
+topo_order = false
+sort_commits = "oldest"
+
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^perf", group = "Performance Improvements" },
+  { message = "^refactor", group = "Code Refactoring" },
+  { message = "^doc", group = "Documentation" },
+  { message = "^test", group = "Tests" },
+  { message = "^style", group = "Styles" },
+  { message = "^revert", group = "Reverts" },
+  { message = "^ci", group = "Continuous Integration" },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore|^build", group = "Miscellaneous Chores" },
+  { message = ".*", group = "Other" },
+]
